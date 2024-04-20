@@ -1,0 +1,173 @@
+Task 1
+
+CREATE SCHEMA IF NOT EXISTS pandemic;
+
+USE pandemic;
+
+________________________________________
+
+Task 2
+
+Всі наступні запити робимо за допомогою USE pandemic;
+
+Розділемо на дві незалежні тааблиці. З містами, та інформацією про них, та інфеції в якій буде лиши id з таблиці countries.
+
+CREATE TABLE countries (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    code varchar(10) primary key,
+    entity varchar(255) not null
+);
+
+CREATE TABLE infections_detail (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    country_id INT,
+    FOREIGN KEY (country_id) REFERENCES countries(id),
+    year YEAR,
+    number_yaws INT,
+    polio_cases INT,
+    cases_guinea_worm INT,
+    number_rabies DOUBLE,
+    number_malaria DOUBLE,
+    number_hiv DOUBLE,
+    number_tuberculosis DOUBLE,
+    number_smallpox DOUBLE,
+    number_cholera_cases DOUBLE
+);
+
+
+Додамо необхідні рядки
+
+ALTER TABLE infections_detail
+    ADD id INT AUTO_INCREMENT PRIMARY KEY,
+    ADD country_id INT,
+    ADD FOREIGN KEY (country_id) REFERENCES countries(id);
+
+Наповнимо таблиці відповідно до оригіналу
+
+INSERT INTO countries (code, entity)
+SELECT DISTINCT Code, Entity from infectious_cases;
+
+
+INSERT INTO infections_detail (
+    country_id, 
+    year, 
+    number_yaws, 
+    polio_cases, 
+    cases_guinea_worm, 
+    number_rabies, 
+    number_malaria, 
+    number_hiv,
+    number_tuberculosis,
+    number_smallpox,
+    number_cholera_cases
+)
+SELECT
+    countries.id, 
+    infectious_cases.Year, 
+    NULLIF(infectious_cases.Number_yaws, ''), 
+    NULLIF(infectious_cases.polio_cases, ''), 
+    NULLIF(infectious_cases.cases_guinea_worm, ''), 
+    NULLIF(infectious_cases.Number_rabies, ''), 
+    NULLIF(infectious_cases.Number_malaria, ''), 
+    NULLIF(infectious_cases.Number_hiv, ''), 
+    NULLIF(infectious_cases.Number_tuberculosis, ''), 
+    NULLIF(infectious_cases.Number_smallpox, ''), 
+    NULLIF(infectious_cases.Number_cholera_cases, '')
+FROM 
+    infectious_cases
+JOIN 
+    countries ON infectious_cases.Code = countries.code;
+
+________________________________________
+
+Task 3
+
+SELECT 
+     countries.entity AS entity,
+     countries.code AS code,
+     AVG(infections_detail.number_rabies) AS avg_rabies,
+     MIN(infections_detail.number_rabies) AS min_rabies,
+     MAX(infections_detail.number_rabies) AS max_rabies,
+     SUM(infections_detail.number_rabies) AS sum_rabies
+ FROM
+     infections_detail
+ JOIN countries ON infections_detail.country_id = countries.id
+ WHERE 
+     infections_detail.number_rabies IS NOT NULL
+ GROUP BY 
+     entity,
+     code
+ ORDER BY 
+     avg_rabies DESC
+ LIMIT 10;
+
+________________________________________
+
+Task 4
+
+SELECT 
+    CONCAT(Year, '-01-01') AS first_day_of_year,
+    CURDATE() AS today,
+    YEAR(CURDATE()) - YEAR(STR_TO_DATE(CONCAT(Year, '-01-01'), '%Y-%m-%d')) AS year_difference
+FROM 
+    infections_detail;
+
+________________________________________
+
+Task 5
+
+DELIMITER //
+
+DROP FUNCTION IF EXISTS calculate_year_difference;
+
+CREATE FUNCTION calculate_year_difference(year_value INT)
+RETURNS INT
+NO SQL
+BEGIN
+    DECLARE year_difference INT;
+    SET year_difference = YEAR(CURDATE()) - year_value;
+    RETURN year_difference;
+END;
+
+//
+
+DELIMITER ;
+
+SELECT 
+    Year,
+    CURDATE() AS today,
+    calculate_year_difference(Year) AS year_difference
+FROM 
+    infections_detail
+
+________________________________________
+
+Task 6*
+
+RETURNS DECIMAL(10,2)
+DETERMINISTIC
+BEGIN
+    DECLARE avg_cases DECIMAL(10,2);
+    
+    -- Перевірка на випадок, якщо total_cases містить порожнє значення
+    IF total_cases = '' THEN
+        SET avg_cases = NULL;
+    ELSE
+        SET avg_cases = total_cases / divisor;
+    END IF;
+    
+    RETURN avg_cases;
+END;
+//
+
+DELIMITER ;
+
+SELECT 
+    Year,
+    calculate_avg_cases(Number_yaws, 12) AS avg_cases_per_month
+FROM 
+    infections_detail
+WHERE 
+    Number_yaws IS NOT NULL;
+
+
